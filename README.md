@@ -335,7 +335,6 @@ After scanning, look for these alerts in ZAP:
 
 ## 📝 Academic Note
 
-This project is submitted as part of the **Advanced Software Testing** seminar.
 It demonstrates VAPT methodology on a controlled local application.
 All vulnerabilities are intentional, documented, and confined to local execution.
 No real user data, real payments, or network exploitation is involved.
