@@ -1,0 +1,108 @@
+hotel-booking-vapt-project/
+│
+├── insecure_app/                          ← INSECURE VERSION (Demo vulnerabilities)
+│   │
+│   ├── backend/
+│   │   ├── app.py                         ← Flask API with XSS, IDOR, Open Redirect
+│   │   ├── seed.py                        ← Standalone DB seed script
+│   │   ├── requirements.txt               ← flask, flask-cors
+│   │   └── hotel.db                       ← SQLite DB (auto-created on first run)
+│   │
+│   └── frontend/
+│       ├── package.json                   ← React app config, proxy → port 5000
+│       ├── public/
+│       │   └── index.html                 ← HTML shell
+│       └── src/
+│           ├── index.js                   ← React entry point
+│           ├── App.js                     ← Router + layout
+│           └── components/
+│               ├── Navbar.js              ← Navigation bar
+│               ├── Home.js                ← Landing page, quick booking lookup
+│               ├── SearchRooms.js         ← [VULN] Reflected XSS in city echo
+│               ├── BookingForm.js         ← [VULN] Stored XSS in name/special_request
+│               ├── ViewBooking.js         ← [VULN] IDOR + Stored XSS render
+│               ├── CancelBooking.js       ← [VULN] IDOR — no ownership check
+│               ├── Payment.js             ← [VULN] Open Redirect demo + mock payment
+│               └── Reviews.js             ← [VULN] Stored XSS in review content
+│
+├── secure_app/                            ← SECURE VERSION (All fixes applied)
+│   │
+│   ├── backend/
+│   │   ├── app.py                         ← Flask API with all mitigations
+│   │   ├── seed.py                        ← Standalone DB seed script
+│   │   ├── requirements.txt               ← flask, flask-cors, bleach
+│   │   └── hotel_secure.db                ← SQLite DB (auto-created on first run)
+│   │
+│   └── frontend/
+│       ├── package.json                   ← React app config, proxy → port 5001
+│       ├── public/
+│       │   └── index.html                 ← HTML shell with CSP meta tag
+│       └── src/
+│           ├── index.js                   ← React entry point
+│           ├── App.js                     ← Router + layout
+│           └── components/
+│               ├── Navbar.js              ← Navigation (green theme — secure indicator)
+│               ├── Home.js                ← [FIX] Requires token to view booking
+│               ├── SearchRooms.js         ← [FIX] Text rendering, no dangerouslySetHTML
+│               ├── BookingForm.js         ← [FIX] Client + server validation; token storage
+│               ├── ViewBooking.js         ← [FIX] IDOR fixed via X-Owner-Token header
+│               ├── CancelBooking.js       ← [FIX] Token required for cancellation
+│               ├── Payment.js             ← [FIX] Secure redirect; token-based payment
+│               └── Reviews.js             ← [FIX] bleach sanitized, text rendering
+│
+└── docs/
+    ├── README.md                          ← Full project overview and run instructions
+    ├── REPORT_NOTES.md                    ← Seminar report: objectives, methodology, findings
+    ├── TESTING_GUIDE.md                   ← Step-by-step OWASP ZAP demo guide
+    └── FOLDER_STRUCTURE.txt               ← This file
+
+
+KEY FILES REFERENCE
+===================
+
+FILE                                PURPOSE
+----                                -------
+insecure_app/backend/app.py         Primary VAPT demo target — 3 vulnerability classes
+secure_app/backend/app.py           Shows all mitigations with inline comments
+insecure_app/frontend/src/
+  components/SearchRooms.js         dangerouslySetInnerHTML → reflected XSS
+  components/BookingForm.js         Unsanitized form → stored XSS injection point
+  components/ViewBooking.js         Raw HTML render + IDOR endpoint
+  components/Payment.js             Open redirect via /api/redirect?next=
+  components/Reviews.js             Stored XSS via reviews
+secure_app/frontend/src/
+  components/BookingForm.js         Client-side validation + bleach server-side
+  components/ViewBooking.js         X-Owner-Token header enforced
+  components/Payment.js             Redirect blocked for external URLs
+docs/TESTING_GUIDE.md               Complete manual + ZAP testing steps
+
+
+VULNERABILITY MAP
+=================
+
+VULNERABILITY       LOCATION (INSECURE)                     FIX LOCATION (SECURE)
+-----------         -------------------                     ---------------------
+Reflected XSS       GET /api/rooms?city=<payload>           bleach.clean + html.escape
+                    SearchRooms.js (dangerouslySetInnerHTML)  React text interpolation
+
+Stored XSS          POST /api/bookings (guest_name, sr)     bleach.clean before DB insert
+                    POST /api/reviews (content)             React text interpolation in render
+                    ViewBooking.js (dangerouslySetInnerHTML)
+
+IDOR                GET  /api/bookings/<id>                 X-Owner-Token header check
+                    POST /api/bookings/<id>/cancel          secrets.token_urlsafe per booking
+                    POST /api/bookings/<id>/pay
+
+Open Redirect       GET /api/redirect?next=<any-url>        urlparse + ALLOWED_REDIRECT_HOSTS
+
+
+PORTS SUMMARY
+=============
+
+SERVICE                 PORT
+-------                 ----
+Insecure backend        5000
+Insecure frontend       3000
+Secure backend          5001
+Secure frontend         3001
+OWASP ZAP proxy         8080  (default)
